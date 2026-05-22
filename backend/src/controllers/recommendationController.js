@@ -22,6 +22,19 @@ async function generateFromMood(req, res, next) {
   }
 }
 
+async function generateFromGroqDJ(req, res, next) {
+  try {
+    const moodPrompt = req.body?.prompt;
+    const data = await recommendationService.generatePlaylistFromGroqDJ({
+      userId: req.user?.id,
+      moodPrompt,
+    });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function analyzeMood(req, res, next) {
   try {
     const moodPrompt = req.body?.prompt;
@@ -32,4 +45,4 @@ async function analyzeMood(req, res, next) {
   }
 }
 
-module.exports = { getRecommendations, generateFromMood, analyzeMood };
+module.exports = { getRecommendations, generateFromMood, analyzeMood, generateFromGroqDJ };

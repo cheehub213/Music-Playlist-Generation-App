@@ -1,5 +1,8 @@
+const { pool } = require("../config/database");
+
 async function listTracks() {
-  return [{ id: "1", title: "Track", artist: "Artist" }];
+  const result = await pool.query('SELECT * FROM tracks');
+  return result.rows;
 }
 
 module.exports = { listTracks };

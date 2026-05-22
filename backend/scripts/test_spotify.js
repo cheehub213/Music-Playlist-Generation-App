@@ -32,12 +32,12 @@ async function main() {
     const result = await spotifyService.search("Daft Punk");
     console.log("Track search check: ok", {
       query: result.query,
-      resultCount: result.results.length,
-      firstTrack: result.results[0]
+      resultCount: result.tracks.length,
+      firstTrack: result.tracks[0]
         ? {
-            title: result.results[0].title,
-            artist: result.results[0].artist,
-            source: result.results[0].source,
+            title: result.tracks[0].title,
+            artist: result.tracks[0].artist,
+            source: result.tracks[0].source,
           }
         : null,
     });

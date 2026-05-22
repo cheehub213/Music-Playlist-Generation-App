@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # AuraBeat
 
 AuraBeat is an AI-powered music streaming mobile application inspired by Spotify, designed to create personalized music experiences based on the user’s emotions and mood.
@@ -37,6 +36,33 @@ npm run dev
 ```
 
 Verify `http://127.0.0.1:3000/health` returns `{"status":"ok"}`. Android emulators reach the host through `http://10.0.2.2:3000/`.
+
+### Quick ngrok testing
+
+If you want to test from a phone on another network, expose the backend with ngrok and point the app at the public URL:
+
+```bash
+cd backend
+npm install
+npm run dev
+
+# in another terminal
+ngrok http 3000
+```
+
+Set the app base URL to the ngrok URL using ADB:
+
+```bash
+adb shell am broadcast -a com.aurabeat.action.SET_API_BASE_URL --es url https://YOUR-NGROK-ID.ngrok-free.app/
+```
+
+To clear the override later:
+
+```bash
+adb shell am broadcast -a com.aurabeat.action.CLEAR_API_BASE_URL
+```
+
+If you need a plain local setup again, clear the override and the app will fall back to the emulator/host defaults in `app/src/main/java/com/aurabeat/di/AppModule.kt`.
 
 ## Planned Features
 - Spotify API integration

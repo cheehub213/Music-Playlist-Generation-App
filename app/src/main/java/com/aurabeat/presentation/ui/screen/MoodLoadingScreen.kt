@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -24,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import com.aurabeat.presentation.ui.component.AiLoadingAnimation
 import com.aurabeat.presentation.ui.theme.AppLayout
 import com.aurabeat.presentation.ui.theme.AppSpacing
@@ -35,22 +37,31 @@ import kotlinx.coroutines.delay
 fun MoodLoadingScreen(
     moodViewModel: MoodViewModel,
     contentPadding: PaddingValues = WindowInsets.statusBars.asPaddingValues(),
-    onFinished: () -> Unit
+    onFinished: () -> Unit,
+    onBack: () -> Unit = {}
 ) {
     val state by moodViewModel.uiState.collectAsState()
 
-    LaunchedEffect(state.prompt, state.isGenerating) {
-        if (!state.isGenerating) return@LaunchedEffect
-
-        val steps = 4
-        val delayPerStep = 650L
-        for (i in 0 until steps) {
-            moodViewModel.updateLoading(i, (i + 1) / steps.toFloat())
-            delay(delayPerStep)
+    LaunchedEffect(state.isGenerating, state.error) {
+        if (!state.isGenerating && state.error == null) {
+            onFinished()
+            return@LaunchedEffect
         }
-        delay(400L)
-        moodViewModel.completeGeneration()
-        onFinished()
+        
+        if (state.isGenerating) {
+            // Animate while API processes (up to 15 seconds total)
+            val steps = 6
+            val delayPerStep = 2500L  // 2.5 sec per step = 15 sec total
+            for (i in 0 until steps) {
+                if (!state.isGenerating) break
+                moodViewModel.updateLoading(i % 4, (i % 4 + 1) / 4f)
+                delay(delayPerStep)
+            }
+            // Max time reached, force completion
+            if (state.isGenerating) {
+                moodViewModel.completeGeneration()
+            }
+        }
     }
 
     Box(
@@ -76,40 +87,66 @@ fun MoodLoadingScreen(
                 fontWeight = FontWeight.SemiBold
             )
 
-            Text(
-                text = "Generating your playlist",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-
-            AiLoadingAnimation()
-
-            AnimatedVisibility(
-                visible = state.isGenerating,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
+            if (state.error != null) {
                 Text(
-                    text = state.loadingMessage,
-                    style = MaterialTheme.typography.titleSmall,
+                    text = "Oops! Something went wrong",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+                
+                Text(
+                    text = state.error ?: "Unknown error",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                
+                Button(
+                    onClick = {
+                        moodViewModel.clearError()
+                        onBack()
+                    },
+                    modifier = Modifier.padding(top = AppSpacing.lg)
+                ) {
+                    Text("Go Back")
+                }
+            } else {
+                Text(
+                    text = "Generating your playlist",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+
+                AiLoadingAnimation()
+
+                AnimatedVisibility(
+                    visible = state.isGenerating,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    Text(
+                        text = state.loadingMessage,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                LinearProgressIndicator(
+                    progress = { state.loadingProgress },
+                    modifier = Modifier
+                        .fillMaxWidth(0.72f)
+                        .padding(top = AppSpacing.sm),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+
+                Text(
+                    text = "Prompt: ${state.prompt}",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-
-            LinearProgressIndicator(
-                progress = { state.loadingProgress },
-                modifier = Modifier
-                    .fillMaxWidth(0.72f)
-                    .padding(top = AppSpacing.sm),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-
-            Text(
-                text = "Prompt: ${state.prompt}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

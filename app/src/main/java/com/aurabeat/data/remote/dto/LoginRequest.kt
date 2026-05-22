@@ -2,5 +2,6 @@ package com.aurabeat.data.remote.dto
 
 data class LoginRequest(
     val email: String,
-    val password: String
+    val password: String,
+    val name: String? = null
 )

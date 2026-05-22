@@ -38,6 +38,7 @@ fun ProfileScreen(
     contentPadding: PaddingValues = WindowInsets.statusBars.asPaddingValues(),
     isDarkTheme: Boolean,
     onToggleTheme: () -> Unit,
+    onLogout: () -> Unit,
     profileViewModel: ProfileViewModel = remember { ProfileViewModel() }
 ) {
     val state by profileViewModel.uiState.collectAsState()
@@ -118,6 +119,8 @@ fun ProfileScreen(
                     onClick = {
                         if (item.title == "Theme") {
                             onToggleTheme()
+                        } else if (item.title == "Logout") {
+                            onLogout()
                         } else {
                             // Future navigation/action hook: ProfileViewModel.onSettingsItemClicked(item.title)
                         }

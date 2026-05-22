@@ -1,0 +1,1 @@
+﻿require('../src/config/env').loadEnv(); const s = require('../src/services/spotifyService'); Promise.all([s.searchTracksPaginated('happy', 12), s.search('happy', {type: 'artist', limit: 4}), s.search('happy', {type: 'album', limit: 4})]).then(() => console.log('OK')).catch(console.error);

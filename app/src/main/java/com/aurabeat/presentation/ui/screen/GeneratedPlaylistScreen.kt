@@ -14,10 +14,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -25,6 +33,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import com.aurabeat.presentation.ui.component.AppButton
 import com.aurabeat.presentation.ui.component.GeneratedSongRow
@@ -38,98 +47,126 @@ import com.aurabeat.presentation.viewmodel.MoodViewModel
 import com.aurabeat.presentation.viewmodel.MockSong
 import com.aurabeat.presentation.viewmodel.PlayerViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GeneratedPlaylistScreen(
     moodViewModel: MoodViewModel,
     playerViewModel: PlayerViewModel,
     contentPadding: PaddingValues = WindowInsets.statusBars.asPaddingValues(),
-    onSongClick: (String) -> Unit
+    onSongClick: (String) -> Unit,
+    onBack: () -> Unit
 ) {
     val state by moodViewModel.uiState.collectAsState()
     val playlist = state.playlist
     val snackbarHostState = remember { SnackbarHostState() }
+    
     LaunchedEffect(state.isSaved) {
         if (state.isSaved) {
             snackbarHostState.showSnackbar("Added to Library")
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(auraScreenGradient())
-            .padding(contentPadding)
-    ) {
-        LazyColumn(
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { 
+                    Text(
+                        "Your Aura Mix",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    ) 
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = "Back to Home"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Color.Transparent,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                )
+            )
+        },
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.padding(horizontal = AppSpacing.xl, vertical = AppSpacing.lg)
+            )
+        },
+        containerColor = Color.Transparent
+    ) { innerPadding ->
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(
-                    horizontal = AppLayout.screenHorizontalPadding,
-                    vertical = AppLayout.screenVerticalPadding
-                ),
-            verticalArrangement = Arrangement.spacedBy(AppLayout.sectionSpacing)
+                .background(auraScreenGradient())
+                .padding(innerPadding)
         ) {
-            item {
-                AnimatedVisibility(
-                    visible = true,
-                    enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
-                ) {
-                    PlaylistHeader(
-                        playlist = playlist,
-                        isSaved = state.isSaved,
-                        onPlayClick = {
-                            playlist.tracks.firstOrNull()?.let {
-                                playTrack(it, playlist.tracks, playerViewModel, onSongClick)
-                            }
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = AppLayout.screenHorizontalPadding),
+                verticalArrangement = Arrangement.spacedBy(AppLayout.sectionSpacing),
+                contentPadding = PaddingValues(bottom = AppSpacing.xxl)
+            ) {
+                item {
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn() + slideInVertically(initialOffsetY = { it / 3 })
+                    ) {
+                        PlaylistHeader(
+                            playlist = playlist,
+                            isSaved = state.isSaved,
+                            onPlayClick = {
+                                playlist.tracks.firstOrNull()?.let {
+                                    playTrack(it, playlist.tracks, playerViewModel, onSongClick)
+                                }
+                            },
+                            onShuffleClick = {
+                                playlist.tracks.randomOrNull()?.let {
+                                    playTrack(it, playlist.tracks, playerViewModel, onSongClick)
+                                }
+                            },
+                            onSaveToggle = moodViewModel::toggleSaved
+                        )
+                    }
+                }
+
+                item {
+                    AppButton(
+                        text = "Regenerate Playlist",
+                        onClick = moodViewModel::regenerate
+                    )
+                }
+
+                item {
+                    MoodAnalysisCard(analysis = playlist.analysis)
+                }
+
+                item {
+                    Text(
+                        text = "Generated Songs",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                items(playlist.tracks, key = { it.id }) { track ->
+                    GeneratedSongRow(
+                        track = track,
+                        onPlayClick = { selected ->
+                            playTrack(selected, playlist.tracks, playerViewModel, onSongClick)
                         },
-                        onShuffleClick = {
-                            playlist.tracks.randomOrNull()?.let {
-                                playTrack(it, playlist.tracks, playerViewModel, onSongClick)
-                            }
-                        },
-                        onSaveToggle = moodViewModel::toggleSaved
+                        onRowClick = { selected ->
+                            playTrack(selected, playlist.tracks, playerViewModel, onSongClick)
+                        }
                     )
                 }
             }
-
-            item {
-                AppButton(
-                    text = "Regenerate Playlist",
-                    onClick = moodViewModel::regenerate
-                )
-            }
-
-            item {
-                MoodAnalysisCard(analysis = playlist.analysis)
-            }
-
-            item {
-                Text(
-                    text = "Generated Songs",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-
-            items(playlist.tracks, key = { it.id }) { track ->
-                GeneratedSongRow(
-                    track = track,
-                    onPlayClick = { selected ->
-                        playTrack(selected, playlist.tracks, playerViewModel, onSongClick)
-                    },
-                    onRowClick = { selected ->
-                        playTrack(selected, playlist.tracks, playerViewModel, onSongClick)
-                    }
-                )
-            }
         }
-
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(horizontal = AppSpacing.xl, vertical = AppSpacing.lg)
-        )
     }
 }
 

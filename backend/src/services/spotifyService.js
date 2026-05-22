@@ -222,24 +222,27 @@ async function search(query, { limit = 10, offset = 0, type = "track,artist,albu
     return { query: normalizedQuery, tracks: [], artists: [], albums: [], playlists: [] };
   }
 
+  const actualLimit = Math.min(Math.max(Number(limit) || 10, 1), 10);
+  const actualOffset = Math.max(Number(offset) || 0, 0);
+
   const data = await requestSpotifyJson(getSpotifyConfig().searchUrl, {
     searchParams: {
       q: normalizedQuery,
       type,
-      limit: Math.min(Math.max(Number(limit) || 10, 1), 50),
-      offset: Math.max(Number(offset) || 0, 0),
+      limit: actualLimit,
+      offset: actualOffset,
     },
   });
 
   return {
     query: normalizedQuery,
-    tracks: Array.isArray(data.tracks?.items) ? data.tracks.items.map(normalizeTrack) : [],
-    artists: Array.isArray(data.artists?.items) ? data.artists.items.map(normalizeArtist) : [],
-    albums: Array.isArray(data.albums?.items) ? data.albums.items.map(normalizeAlbum) : [],
-    playlists: Array.isArray(data.playlists?.items) ? data.playlists.items.map(normalizePlaylist) : [],
+    tracks: Array.isArray(data.tracks?.items) ? data.tracks.items.filter(Boolean).map(normalizeTrack) : [],
+    artists: Array.isArray(data.artists?.items) ? data.artists.items.filter(Boolean).map(normalizeArtist) : [],
+    albums: Array.isArray(data.albums?.items) ? data.albums.items.filter(Boolean).map(normalizeAlbum) : [],
+    playlists: Array.isArray(data.playlists?.items) ? data.playlists.items.filter(Boolean).map(normalizePlaylist) : [],
     total: data.tracks?.total || data.artists?.total || data.albums?.total || data.playlists?.total || 0,
     nextOffset: data.tracks?.next || data.artists?.next || data.albums?.next || data.playlists?.next
-      ? (Number(offset) || 0) + (Number(limit) || 10)
+      ? actualOffset + actualLimit
       : null,
   };
 }
@@ -250,7 +253,7 @@ async function searchTracksPaginated(query, minimum = 20) {
   let offset = 0;
 
   while (tracks.length < minimum && offset < 150) {
-    const page = await search(query, { limit: 20, offset });
+    const page = await search(query, { limit: 10, offset });
     page.tracks.forEach((track) => {
       if (track.id && !seen.has(track.id)) {
         seen.add(track.id);
@@ -268,18 +271,18 @@ async function searchTracksPaginated(query, minimum = 20) {
 
 async function fetchCategoryPlaylists(config, categoryId) {
   const data = await requestSpotifyJson(`/browse/categories/${categoryId}/playlists`, {
-    searchParams: { limit: 12, country: config.country },
+    searchParams: { limit: 10, country: config.country },
   });
-  return Array.isArray(data.playlists?.items) ? data.playlists.items.map(normalizePlaylist) : [];
+  return Array.isArray(data.playlists?.items) ? data.playlists.items.filter(Boolean).map(normalizePlaylist) : [];
 }
 
 async function featuredPlaylists() {
   const config = getSpotifyConfig();
   try {
     const data = await requestSpotifyJson("/browse/featured-playlists", {
-      searchParams: { limit: 12, country: config.country },
+      searchParams: { limit: 10, country: config.country },
     });
-    return Array.isArray(data.playlists?.items) ? data.playlists.items.map(normalizePlaylist) : [];
+    return Array.isArray(data.playlists?.items) ? data.playlists.items.filter(Boolean).map(normalizePlaylist) : [];
   } catch (err) {
     if (!(err instanceof AppError) || (err.status !== 403 && err.status !== 404)) {
       throw err;
@@ -326,7 +329,7 @@ async function featuredPlaylists() {
 async function artistDetails(artistId) {
   const [artist, albums, topTracks, relatedArtists] = await Promise.all([
     requestSpotifyJson(`/artists/${artistId}`),
-    requestSpotifyJson(`/artists/${artistId}/albums`, { searchParams: { limit: 12, include_groups: "album,single" } }),
+    requestSpotifyJson(`/artists/${artistId}/albums`, { searchParams: { limit: 10, include_groups: "album,single" } }),
     requestSpotifyJson(`/artists/${artistId}/top-tracks`, { searchParams: { market: "US" } }),
     requestSpotifyJson(`/artists/${artistId}/related-artists`),
   ]);

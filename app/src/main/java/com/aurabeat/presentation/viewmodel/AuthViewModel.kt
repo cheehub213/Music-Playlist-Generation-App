@@ -3,11 +3,13 @@ package com.aurabeat.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aurabeat.core.Resource
-import com.aurabeat.data.repository.FakeAuthRepository
+import com.aurabeat.data.repository.AuthRepository
 import com.aurabeat.domain.model.User
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 data class AuthUiState(
 	val isLoading: Boolean = false,
@@ -17,46 +19,68 @@ data class AuthUiState(
 	val error: String? = null
 )
 
-class AuthViewModel(
-	private val authRepository: FakeAuthRepository = FakeAuthRepository()
+@HiltViewModel
+class AuthViewModel @Inject constructor(
+	private val authRepository: AuthRepository
 ) : ViewModel() {
 	private val _uiState = MutableStateFlow(AuthUiState())
 	val uiState: StateFlow<AuthUiState> = _uiState
+
+	init {
+		// Check if already logged in
+		val token = authRepository.getToken()
+		if (token != null) {
+			_uiState.value = _uiState.value.copy(
+				isAuthenticated = true,
+				sessionToken = token
+			)
+		}
+	}
 
 	fun login(email: String, password: String) {
 		viewModelScope.launch {
 			_uiState.value = _uiState.value.copy(isLoading = true, error = null)
 			try {
-				val token = authRepository.login(email, password)
-				val session = authRepository.sessionState().value
+				val response = authRepository.loginAndGetResponse(email, password)
 				_uiState.value = _uiState.value.copy(
 					isLoading = false,
 					isAuthenticated = true,
-					currentUser = session.currentUser,
-					sessionToken = token
+                    currentUser = User(
+                        id = response.user.id,
+                        name = response.user.name ?: "User",
+                        email = response.user.email
+                    ),
+					sessionToken = response.token
 				)
 			} catch (throwable: Throwable) {
-				_uiState.value = _uiState.value.copy(isLoading = false, error = throwable.message ?: "Login failed")
+				_uiState.value = _uiState.value.copy(
+					isLoading = false,
+					error = throwable.message ?: "Login failed"
+				)
 			}
 		}
 	}
 
-	fun signup(name: String, email: String, password: String) {
+	fun register(name: String, email: String, password: String) {
 		viewModelScope.launch {
 			_uiState.value = _uiState.value.copy(isLoading = true, error = null)
-			when (val result = authRepository.signup(name, email, password)) {
-				is Resource.Success -> {
-					_uiState.value = _uiState.value.copy(
-						isLoading = false,
-						isAuthenticated = true,
-						currentUser = result.data,
-						sessionToken = authRepository.sessionState().value.sessionToken
-					)
-				}
-				is Resource.Error -> {
-					_uiState.value = _uiState.value.copy(isLoading = false, error = result.message ?: "Signup failed")
-				}
-				Resource.Loading -> Unit
+			try {
+				val response = authRepository.register(name, email, password)
+				_uiState.value = _uiState.value.copy(
+					isLoading = false,
+					isAuthenticated = true,
+					currentUser = User(
+						id = response.user.id,
+						email = response.user.email,
+                        name = response.user.name ?: "User",
+					),
+					sessionToken = response.token
+				)
+			} catch (throwable: Throwable) {
+				_uiState.value = _uiState.value.copy(
+					isLoading = false,
+					error = throwable.message ?: "Registration failed"
+				)
 			}
 		}
 	}
@@ -65,4 +89,9 @@ class AuthViewModel(
 		authRepository.logout()
 		_uiState.value = AuthUiState()
 	}
+
+	fun clearError() {
+		_uiState.value = _uiState.value.copy(error = null)
+	}
 }
+

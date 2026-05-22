@@ -1,14 +1,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.aurabeat">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:name="com.aurabeat.AuraBeatApplication"
         android:allowBackup="true"
-        android:icon="@mipmap/aurabeatluncher"
+        android:icon="@mipmap/ic_launcher"
         android:label="AuraBeat"
-        android:roundIcon="@mipmap/aurabeatluncher_round"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+        android:theme="@style/Theme.Material3.DayNight.NoActionBar"
+        android:networkSecurityConfig="@xml/network_security_config">
         <activity
             android:name="com.aurabeat.MainActivity"
             android:exported="true"
@@ -18,5 +21,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <receiver
+            android:name="com.aurabeat.ApiConfigReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.aurabeat.action.SET_API_BASE_URL" />
+                <action android:name="com.aurabeat.action.CLEAR_API_BASE_URL" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

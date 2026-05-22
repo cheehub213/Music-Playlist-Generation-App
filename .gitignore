@@ -1,14 +1,21 @@
-﻿
-# Node
-node_modules/
-
-# Env
-backend/.env.local
-.env
-
+﻿*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.externalNativeBuild
+.cxx
+local.properties
 # Build / IDE
-wrapper/dists/
-native/
+build/
+app/build/
+backend/node_modules/
+backend/.env
+backend/.env.local
 *.log
 
 # OS
@@ -19,4 +26,7 @@ Thumbs.db
 .vscode/
 .idea/
 
-
+# Android Studio
+*.keystore
+*.jks
+captures/

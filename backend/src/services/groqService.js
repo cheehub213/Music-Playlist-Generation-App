@@ -108,7 +108,7 @@ async function requestStructuredCompletion({ systemPrompt, userPrompt, schemaHin
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${config.apiKey}`,
+          "Authorization": `Bearer ${config.apiKey}`,
         },
         body: JSON.stringify(payloadBase),
         signal: controller.signal,
@@ -197,4 +197,122 @@ async function requestStructuredCompletion({ systemPrompt, userPrompt, schemaHin
   throw new AppError(lastError?.message || "Groq request failed", 502);
 }
 
-module.exports = { requestStructuredCompletion };
+async function generateSongRecommendations(moodPrompt) {
+  const systemPrompt = `You are AuraBeat's DJ curator. Given a music mood or vibe description, return ONLY a valid JSON array of exactly 10 songs. Each song must have "title" and "artist" fields. Return ONLY the JSON array, no other text.`;
+
+  const userMessage = `Curate 10 songs for this vibe: ${moodPrompt}. Return ONLY valid JSON array like this: [{"title":"Song Name","artist":"Artist Name"}]`;
+  
+  const config = getGroqConfig();
+  if (!config.apiKey) {
+    throw new AppError("Missing GROQ_API_KEY in environment", 500);
+  }
+
+  const payload = {
+    model: config.model,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage }
+    ],
+    temperature: 0.7,
+    max_tokens: 2000
+  };
+
+  const controller = new AbortController();
+  const timedOutStage = { value: null };
+  const connectTimeoutId = setTimeout(() => {
+    timedOutStage.value = "connect";
+    controller.abort();
+  }, config.connectTimeoutMs);
+
+  const writeTimeoutId = setTimeout(() => {
+    timedOutStage.value = "write";
+    controller.abort();
+  }, config.writeTimeoutMs);
+
+  try {
+    const response = await fetch(config.apiUrl, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${config.apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    clearTimeout(connectTimeoutId);
+    clearTimeout(writeTimeoutId);
+
+    const readTimeoutId = setTimeout(() => {
+      timedOutStage.value = "read";
+      controller.abort();
+    }, config.readTimeoutMs);
+
+    let text = "";
+    try {
+      text = await response.text();
+    } finally {
+      clearTimeout(readTimeoutId);
+    }
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (err) {
+      data = { raw: text };
+    }
+
+    if (!response.ok) {
+      const message = errorMessageFromResponse(data, response.status);
+      logger.warn("Groq request failed", { status: response.status, message });
+      throw new AppError(message, response.status);
+    }
+
+    // Extract content from response
+    const content = contentFromResponse(data);
+    
+    // Try to parse as JSON
+    try {
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        throw new Error("No JSON array found in response");
+      }
+      const songs = JSON.parse(jsonMatch[0]);
+      
+      // Validate structure
+      if (!Array.isArray(songs) || songs.length !== 10) {
+        throw new Error(`Expected 10 songs, got ${songs.length}`);
+      }
+      
+      // Validate each song has title and artist
+      const validatedSongs = songs.map((song, idx) => {
+        if (!song.title || !song.artist) {
+          throw new Error(`Song ${idx + 1} missing title or artist`);
+        }
+        return {
+          title: String(song.title).trim(),
+          artist: String(song.artist).trim()
+        };
+      });
+      
+      return validatedSongs;
+    } catch (parseErr) {
+      logger.error("Failed to parse Groq DJ response", { error: parseErr.message, content });
+      throw new AppError("Invalid song list format from AI", 400);
+    }
+  } catch (err) {
+    if (err?.name === "AbortError" && timedOutStage.value) {
+      throw new AppError(`Groq request timed out during ${timedOutStage.value}`, 504);
+    }
+    if (err instanceof AppError) throw err;
+    if (isConnectionError(err)) {
+      throw toServiceUnreachableError("Groq", err);
+    }
+    throw err;
+  } finally {
+    clearTimeout(connectTimeoutId);
+    clearTimeout(writeTimeoutId);
+  }
+}
+
+module.exports = { requestStructuredCompletion, generateSongRecommendations };

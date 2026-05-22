@@ -1,6 +1,10 @@
+require('dotenv').config();
+const { loadEnv } = require("./config/env");
+// LOAD ENV VARS BEFORE ANY OTHER IMPORTS!
+loadEnv();
+
 const express = require("express");
 const cors = require("cors");
-const { loadEnv } = require("./config/env");
 const { getSpotifyConfig } = require("./config/spotify");
 const { errorHandler } = require("./middleware/errorHandler");
 const { logger: requestLogger } = require("./middleware/logger");
@@ -15,8 +19,6 @@ const spotifyRoutes = require("./routes/spotify.routes");
 const searchRoutes = require("./routes/search.routes");
 const notificationsRoutes = require("./routes/notifications.routes");
 const devRoutes = require("./routes/dev.routes");
-
-loadEnv();
 
 const spotifyConfig = getSpotifyConfig();
 appLogger.info("Spotify env loaded", {

@@ -126,21 +126,22 @@ fun SearchScreen(
             }
 
             item {
-                SectionTitle(title = "Browse Categories")
-            }
-
-            item {
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 150.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(420.dp),
-                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.md),
-                    verticalArrangement = Arrangement.spacedBy(AppSpacing.md),
-                    userScrollEnabled = false
-                ) {
-                    items(SearchMockData.categories) { category ->
-                        CategoryCard(category = category)
+                AnimatedVisibility(visible = state.query.isBlank()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.md)) {
+                        SectionTitle(title = "Browse Categories")
+                        LazyVerticalGrid(
+                            columns = GridCells.Adaptive(minSize = 150.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(420.dp),
+                            horizontalArrangement = Arrangement.spacedBy(AppSpacing.md),
+                            verticalArrangement = Arrangement.spacedBy(AppSpacing.md),
+                            userScrollEnabled = false
+                        ) {
+                            items(SearchMockData.categories) { category ->
+                                CategoryCard(category = category)
+                            }
+                        }
                     }
                 }
             }
